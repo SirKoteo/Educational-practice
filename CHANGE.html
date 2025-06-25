@@ -1,0 +1,880 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Криптоанализ шифра простой замены</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 10px 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #f5f5f5;
+        }
+        .header {
+            margin-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .container {
+            display: flex;
+            flex: 1;
+            gap: 20px;
+        }
+        .text-panels {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .text-panel {
+            border: 1px solid #ccc;
+            padding: 15px;
+            background-color: white;
+            border-radius: 5px;
+            overflow-y: auto;
+            height: 555px;
+        }
+        .encrypted-text {
+            font-family: monospace;
+            font-size: 16px;
+            line-height: 1.5;
+            resize: vertical;
+            padding: 10px;
+            width: 850px;
+            box-sizing: border-box;
+        }
+        .decrypted-text {
+            font-family: monospace;
+            font-size: 16px;
+            line-height: 1.5;
+            background-color: #ffffe0;
+            white-space: pre-wrap; /* Это сохранит переносы строк */
+        }
+        .sidebar {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .substitution-table {
+            border: 1px solid #ccc;
+            padding: 15px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        /* .substitution-list {
+            list-style-type: none;
+            padding: 0;
+            columns: 2;
+            column-gap: 15px;
+        } */
+        /* .substitution-list li {
+            margin-bottom: 3px;
+            padding: 3px;
+            background-color: #f9f9f9;
+            border-radius: 3px;
+            font-size: 16px;
+            break-inside: avoid;
+        } */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        button {
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .char-inputs {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .char-inputs input {
+            width: 40px;
+            height: 40px;
+            text-align: center;
+            font-size: 18px;
+            text-transform: uppercase;
+        }
+        .statistics {
+            border: 1px solid #ccc;
+            padding: 15px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .statistics h3 {
+            margin-top: 0;
+        }
+        .stat-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .stat-table th, .stat-table td {
+            border: 1px solid #ddd;
+            padding: 6px;
+            text-align: left;
+            font-size: 14px;
+        }
+        .stat-table th {
+            background-color: #f2f2f2;
+        }
+        .progress-info {
+            border: 1px solid #ccc;
+            padding: 15px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+        }
+        .progress-info p {
+            margin: 0 0 5px 0;
+            font-weight: bold;
+        }
+        .progress-bar {
+            height: 20px;
+            background-color: #e0e0e0;
+            border-radius: 4px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+        .progress {
+            height: 100%;
+            background-color: #4CAF50;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .error-message {
+        color: #d32f2f;
+        background-color: #fde0e0;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 10px;
+        border: 1px solid #ef9a9a;
+        animation: fadeIn 0.3s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .substitution-list li {
+            margin-bottom: 3px;
+            padding: 3px;
+            font-size: 16px;
+            break-inside: avoid;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .substitution-list input {
+            width: 25px;
+            height: 25px;
+            text-align: center;
+            font-size: 14px;
+            text-transform: uppercase;
+            padding: 2px;
+        }
+        .apply-btn {
+            padding: 5px 10px;
+            font-size: 15px;
+            margin-top: 5px;
+            padding: 2px 6px;
+            align-self: flex-start; /* Выравнивание кнопки по левому краю */
+            width: auto;
+        }
+        .substitution-list {
+            list-style-type: none;
+            padding: 0;
+            columns: 5; /* Изменено с 3 на 2 */
+            column-gap: 5px;
+        }
+        .substitution-pair {
+            display: flex;
+            align-items: center;
+            gap: 3px; /* Уменьшен промежуток между элементами */
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            overflow: auto;
+        }
+
+        .modal-content {
+            background-color: #f5f5f5;
+            margin: 5% auto;
+            padding: 20px;
+            border-radius: 5px;
+            width: 80%;
+            max-width: 800px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: black;
+        }
+        .author-info {
+            color: grey;
+            font-size: 15px;
+            margin-left: 20px;
+            text-align: right;
+            white-space: nowrap;
+        }
+    </style>
+<!-- однажды весною в час небывало жаркого заката в москве на патриарших прудах появились два гражданина первый из них одетый в летнюю серенькую пару был маленького роста упитан лыс свою приличную шляпу пирожком нес в руке а на хорошо выбритом лице его помещались сверхъестественных размеров очки в черной роговой оправе второй плечистый рыжеватый вихрастый молодой человек в заломленной на затылок клетчатой кепке был в ковбойке жеваных белых брюках и в черных тапочках -->
+</head>
+<body>
+    <div class="header">
+        <h1>Криптоанализ шифра простой замены</h1>
+        <div class="author-info">
+            <p>СПбГУТ им.Бонч-Бруевича<br>Факультет кибербезопасности<br>Денискова Н.О. ИКБ-45</p>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="text-panels">
+            <b>Зашифрованный текст</b>
+            <textarea class="text-panel encrypted-text" id="encryptedText">
+лхорвхю ущзолё у ьрз ощцюурнл врдмлфл ырмрир у плзмущ ор кридшрдбшт кджхрт клхушншзэ хур фдрвхрошор кщдуюс шы ошт лхщиюс у нщиоёё зщдщоэмжё крдж цюн прнщоэмлфл длзир жкширо нюз зулё кдшншьожё бнхкж кшдлвмлп ощз у джмщ р ор тлдлбл уюцдшилп ншъщ щфл клпщйрншзэ зущдтящзищзиущооют дрыпщдлу льмш у ьщдолс длфлулс лкдрущ уилдлс кнщьшзиюс дювщуриюс уштдрзиюс плнлхлс ьщнлущм у ырнлпнщоолс ор ыриюнлм мнщиьрилс мщкмщ цюн у млуцлсмщ вщуроют цщнют цдёмрт ш у ьщдоют иркльмрт
+            </textarea>
+            <b>Расшифрованный текст</b>
+            <textarea class="text-panel decrypted-text" id="decryptedText">
+                <!-- Здесь будет отображаться расшифрованный текст -->
+            </textarea>
+        </div>
+        
+        <div class="sidebar">
+            <div class="substitution-table">
+                <h3>Таблица замен</h3>
+                <div class="progress-info">
+                    <div class="progress-bar">
+                        <div class="progress" style="width: 0%"></div>
+                    </div>
+                </div>
+                
+                <ul class="substitution-list" id="substitutionList">
+                    <!-- Список замен будет добавляться здесь -->
+                </ul>
+                
+                <div class="controls">
+                    <button id="showRussianStats">Статистика алфавита</button>
+                    <button id="showEncryptedStats">Статистика зашифрованного</button>
+                    <button id="showDecryptedStats">Статистика расшифрованного</button>
+                    <button id="resetSubstitutions">Сбросить замены</button>
+                </div>
+            </div>
+            
+            <!-- <div class="statistics" id="statisticsPanel" style="display: none;">
+                <h3 id="statsTitle">Статистика</h3>
+                <table class="stat-table" id="statsTable">
+                    <thead>
+                        <tr>
+                            <th>Символ</th>
+                            <th>Частота</th>
+                            <th>%</th>
+                        </tr>
+                    </thead>
+                    <tbody> -->
+                        <!-- Статистика будет добавляться здесь -->
+                    <!-- </tbody>
+                </table>
+            </div> -->
+        </div>
+    </div>
+
+    <script>
+        // Статистика частотности букв русского языка (в порядке убывания)
+        const russianLetterStats = {
+            'о': 0.1097, 'е': 0.0845, 'а': 0.0801, 'и': 0.0735, 'н': 0.0670,
+            'т': 0.0626, 'с': 0.0547, 'р': 0.0473, 'в': 0.0454, 'л': 0.0440,
+            'к': 0.0349, 'м': 0.0321, 'д': 0.0298, 'п': 0.0281, 'у': 0.0262,
+            'я': 0.0201, 'ы': 0.0190, 'ь': 0.0174, 'г': 0.0170, 'з': 0.0165,
+            'б': 0.0159, 'ч': 0.0144, 'й': 0.0121, 'х': 0.0097, 'ж': 0.0094,
+            'ш': 0.0073, 'ю': 0.0064, 'ц': 0.0048, 'щ': 0.0036, 'э': 0.0032,
+            'ф': 0.0026, 'ъ': 0.0004, 'ё': 0.0004, ' ': 0.1500 // Добавляем пробел
+        };
+        
+        // Состояние приложения
+        const state = {
+            substitutions: {},
+            decryptedPercent: 0
+        };
+        
+        // Инициализация приложения
+        $(document).ready(function() {
+            // Инициализация (применяет фильтрацию к начальному тексту)
+            const initialText = $('#encryptedText').val();
+            let cleanedText = '';
+            
+            for (const char of initialText.toLowerCase()) {
+                if (/[а-яё ]/.test(char)) {
+                cleanedText += char;
+                }
+            }
+            
+            $('#encryptedText').val(cleanedText);
+            initializeDecryptedText();
+            updateSubstitutionList();
+
+            // Обработчики событий
+            $('#addSubstitution').click(addSubstitution);
+            $('#showRussianStats').click(() => showStatistics('Статистика алфавита', russianLetterStats));
+            $('#showEncryptedStats').click(() => showStatistics('Статистика зашифрованного текста', calculateStats($('#encryptedText').text())));
+            // $('#showDecryptedStats').click(() => showStatistics('Статистика расшифрованного текста', calculateStats($('#decryptedText').text())));
+            $('#showDecryptedStats').click(() => {
+                const decryptedText = $('#decryptedText').text();
+                showStatistics(
+                    'Статистика расшифрованного текста',
+                    calculateDecryptedStats(decryptedText)
+                );
+            });
+            $('#encryptedText').on('input', function() {
+            // Фильтруем текст: только русские буквы, пробел и ё в нижнем регистре
+            let filteredText = '';
+            const originalText = $(this).val();
+            
+            for (const char of originalText.toLowerCase()) {
+                if (/[а-яё ]/.test(char)) {
+                filteredText += char;
+                }
+            }
+            
+            // Обновляем поле, если текст изменился
+            if ($(this).val() !== filteredText) {
+                $(this).val(filteredText);
+            }
+            
+            applySubstitutions(); // Применяем текущие замены
+            updateRussianStats(); // Обновляем статистику
+            });
+
+            // Инициализация прогресса
+            updateProgressInfo();
+            updateSubstitutionList();
+        });
+
+        function updateRussianStats() {
+            const text = $('#encryptedText').val();
+            const stats = calculateStats(text);
+            
+            // Обновляем глобальную статистику русского языка
+            for (const char in russianLetterStats) {
+                if (char in stats) {
+                    russianLetterStats[char] = stats[char];
+                } else {
+                    russianLetterStats[char] = 0;
+                }
+            }
+            
+            // Если статистика сейчас открыта - обновляем её отображение
+            if ($('#statisticsPanel').is(':visible') && $('#statsTitle').text() === 'Русская статистика') {
+                showStatistics('Русская статистика', russianLetterStats);
+            }
+        }
+        // Инициализация расшифрованного текста
+        // function initializeDecryptedText() {
+        //     const encryptedText = $('#encryptedText').val();
+        //     let decryptedText = '';
+            
+        //     for (const char of encryptedText) {
+        //         // Только русские буквы заменяем на "?", остальное оставляем
+        //         decryptedText += /[а-яА-ЯёЁ]/.test(char) ? '?' : char;
+        //     }
+            
+        //     $('#decryptedText').text(decryptedText);
+        // }
+        // function initializeDecryptedText() {
+        //     const encryptedText = $('#encryptedText').val();
+        //     $('#decryptedText').text(encryptedText);
+        // }
+        function initializeDecryptedText() {
+            const encryptedText = $('#encryptedText').val();
+            let decryptedText = '';
+            
+            for (const char of encryptedText) {
+                if (/[а-яё]/.test(char)) {
+                    decryptedText += '?'; // Русские буквы → ?
+                } else if (char === ' ') {
+                    decryptedText += ' '; // Пробелы остаются
+                } else if (char === '\n') {
+                    decryptedText += '\n'; // Сохраняем переносы строк
+                } else if (char === '\t') {
+                    decryptedText += '\t'; // Сохраняем табуляции
+                } else {
+                    decryptedText += char; // Все остальные символы
+                }
+            }
+            
+            $('#decryptedText').text(decryptedText);
+        }
+
+        // Добавление замены в таблицу
+        function addSubstitution() {
+            const encryptedChar = $('#encryptedChar').val().toLowerCase();
+            const decryptedChar = $('#decryptedChar').val().toLowerCase();
+            
+            // Удаляем предыдущие сообщения об ошибках
+            $('.error-message').remove();
+    
+            if (encryptedChar && decryptedChar && /[а-яё]/.test(encryptedChar) && /[а-яё]/.test(decryptedChar)) {
+                state.substitutions[encryptedChar] = decryptedChar;
+                updateSubstitutionList();
+        
+                $('#encryptedChar').val('').focus();
+                $('#decryptedChar').val('');
+                applySubstitutions();
+            } else {
+                const errorMsg = $('<div class="error-message">').text('Пожалуйста, введите корректные русские буквы');
+                $('.char-inputs').after(errorMsg);
+                setTimeout(() => errorMsg.fadeOut(500, () => errorMsg.remove()), 3000);
+            }
+        }
+        $('#resetSubstitutions').click(function() 
+        {
+            state.substitutions = {};
+            $('.decrypted-char-input').val('');
+            applySubstitutions();
+            updateProgressInfo();
+        });
+        // Обновление списка замен
+        /* function updateSubstitutionList() {
+            const list = $('#substitutionList');
+            list.empty();
+            
+            // Добавляем русские буквы (в верхнем регистре)
+            for (let charCode = 1040; charCode <= 1071; charCode++) {
+                const upperChar = String.fromCharCode(charCode);
+                const lowerChar = String.fromCharCode(charCode + 32);
+                
+                const listItem = $(`
+                    <li>
+                        ${upperChar} → 
+                        <input type="text" class="decrypted-char-input" data-encrypted="${lowerChar}" 
+                            value="${state.substitutions[lowerChar] || ''}" maxlength="1">
+                        <button class="apply-btn" data-encrypted="${lowerChar}">Применить</button>
+                    </li>
+                `);
+                list.append(listItem);
+            }
+            
+            // Добавляем букву 'Ё' отдельно
+            const yoUpper = 'Ё';
+            const yoLower = 'ё';
+            const yoItem = $(`
+                <li>
+                    ${yoUpper} → 
+                    <input type="text" class="decrypted-char-input" data-encrypted="${yoLower}" 
+                        value="${state.substitutions[yoLower] || ''}" maxlength="1">
+                    <button class="apply-btn" data-encrypted="${yoLower}">Применить</button>
+                </li>
+            `);
+            list.append(yoItem);
+            
+            // Добавляем пробел
+            const spaceItem = $(`
+                <li>
+                    Пробел → 
+                    <input type="text" class="decrypted-char-input" data-encrypted=" " 
+                        value="${state.substitutions[' '] || ''}" maxlength="1">
+                    <button class="apply-btn" data-encrypted=" ">Применить</button>
+                </li>
+            `);
+            list.append(spaceItem);
+
+            // Обработчики для кнопок "Применить"
+            $('.apply-btn').click(function() {
+                const encryptedChar = $(this).data('encrypted');
+                const decryptedChar = $(this).siblings('.decrypted-char-input').val().toLowerCase();
+                
+                if (decryptedChar && /[а-яё ]/.test(decryptedChar)) {
+                    state.substitutions[encryptedChar] = decryptedChar;
+                    applySubstitutions();
+                    updateProgressInfo(); // Добавляем этот вызов
+                } else {
+                    // обработка ошибки
+                }
+            });
+        } */
+        function updateSubstitutionList() {
+            const list = $('#substitutionList');
+            list.empty();
+
+            // Создаем массив всех русских букв в алфавитном порядке
+            const russianLetters = [];
+            for (let charCode = 1072; charCode <= 1103; charCode++) {
+                russianLetters.push(String.fromCharCode(charCode));
+            }
+            // Добавляем букву 'ё' в правильное место (после 'е')
+            russianLetters.splice(russianLetters.indexOf('ж'), 0, 'ё');
+            
+            // Добавляем заглавные буквы для отображения
+            const upperRussianLetters = [];
+            for (let charCode = 1040; charCode <= 1071; charCode++) {
+                upperRussianLetters.push(String.fromCharCode(charCode));
+            }
+            upperRussianLetters.splice(upperRussianLetters.indexOf('Ж'), 0, 'Ё');
+
+            // Создаем элементы для всех букв в алфавитном порядке
+            for (let i = 0; i < russianLetters.length; i++) {
+                const lowerChar = russianLetters[i];
+                const upperChar = upperRussianLetters[i];
+                
+                const listItem = $(`
+                    <li>
+                        <div class="substitution-pair">
+                            ${upperChar} → 
+                            <input type="text" class="decrypted-char-input" 
+                                data-encrypted="${lowerChar}" 
+                                value="${state.substitutions[lowerChar] || ''}" 
+                                maxlength="1">
+                        </div>
+                        <button class="apply-btn" data-encrypted="${lowerChar}">Применить</button>
+                    </li>
+                `);
+                list.append(listItem);
+            }
+
+            // Добавляем пробел последним
+            const spaceItem = $(`
+                <li>
+                    <div class="substitution-pair">
+                        Пробел → 
+                        <input type="text" class="decrypted-char-input" 
+                            data-encrypted=" " 
+                            value="${state.substitutions[' '] || ''}" 
+                            maxlength="1">
+                    </div>
+                    <button class="apply-btn" data-encrypted=" ">Применить</button>
+                </li>
+            `);
+            list.append(spaceItem);
+
+            // Обработчики событий
+            $('.apply-btn').click(function() {
+                const encryptedChar = $(this).data('encrypted');
+                const decryptedChar = $(this).parent().find('.decrypted-char-input').val().toLowerCase();
+                
+                if (decryptedChar && /[а-яё ]/.test(decryptedChar)) {
+                    state.substitutions[encryptedChar] = decryptedChar;
+                    applySubstitutions();
+                    updateProgressInfo();
+                }
+            });
+        }
+        function updateProgressInfo() {
+            const totalSymbols = 34; // 33 буквы + пробел
+            const completedSubstitutions = Object.keys(state.substitutions).length;
+            
+            $('.progress-info').html(`
+                <p>Выполнено замен: ${completedSubstitutions}/${totalSymbols}</p>
+                <div class="progress-bar">
+                    <div class="progress" style="width: ${Math.round((completedSubstitutions / totalSymbols) * 100)}%"></div>
+                </div>
+            `);
+        }
+        // Применение замен к тексту
+        // function applySubstitutions() {
+        //     const encryptedText = $('#encryptedText').val();
+        //     let decryptedText = '';
+            
+        //     for (const char of encryptedText) {
+        //         if (/[а-яА-ЯёЁ]/.test(char)) {
+        //             // Только для русских букв
+        //             const lowerChar = char.toLowerCase();
+        //             if (state.substitutions[lowerChar]) {
+        //                 // Если есть замена - применяем с учетом регистра
+        //                 decryptedText += (char === char.toUpperCase()) ? 
+        //                     state.substitutions[lowerChar].toUpperCase() : 
+        //                     state.substitutions[lowerChar];
+        //             } else {
+        //                 // Если нет замены - знак вопроса
+        //                 decryptedText += '?';
+        //             }
+        //         } else {
+        //             // Все остальные символы оставляем как есть
+        //             decryptedText += char;
+        //         }
+        //     }
+            
+        //     $('#decryptedText').text(decryptedText);
+        //     updateProgressInfo();
+        // }
+        // function applySubstitutions() {
+        //     const encryptedText = $('#encryptedText').val();
+        //     let decryptedText = '';
+            
+        //     for (const char of encryptedText) {
+        //         if (/[а-яА-ЯёЁ]/.test(char)) {
+        //             const lowerChar = char.toLowerCase();
+        //             decryptedText += state.substitutions[lowerChar] ? 
+        //                 (char === char.toUpperCase() ? 
+        //                 state.substitutions[lowerChar].toUpperCase() : 
+        //                 state.substitutions[lowerChar]) : 
+        //                 char;
+        //         } else {
+        //             decryptedText += char; // Переносы строк остаются в тексте, но не в статистике
+        //         }
+        //     }
+            
+        //     $('#decryptedText').text(decryptedText);
+        //     updateProgressInfo();
+        // }
+        function applySubstitutions() {
+            const encryptedText = $('#encryptedText').val();
+            let decryptedText = '';
+            
+            for (const char of encryptedText) {
+                if (/[а-яё]/.test(char)) {
+                    decryptedText += state.substitutions[char] || '?'; // Буквы → замена или "?"
+                } else if (char === ' ') {
+                    decryptedText += state.substitutions[' '] || ' '; // Пробел → замена или пробел
+                } else if (char === '\n') {
+                    decryptedText += '\n'; // Сохраняем переносы строк
+                } else if (char === '\t') {
+                    decryptedText += '\t'; // Сохраняем табуляции
+                } else {
+                    decryptedText += char; // Все остальные символы
+                }
+            }
+            
+            $('#decryptedText').text(decryptedText);
+            updateProgressInfo();
+        }
+
+        $('#resetSubstitutions').click(function() {
+            // Вариант 1: Полный сброс (пробел → сбросится)
+            state.substitutions = {};
+            initializeDecryptedText();  // Пробел станет "?" (если в функции он включён в /[а-яё ]/)
+            updateProgressInfo();
+        });
+        // Показать статистику
+        // function showStatistics(title, stats) {
+        //     $('#statsTitle').text(title);
+        //     const tableBody = $('#statsTable tbody');
+        //     tableBody.empty();
+            
+        //     // Сортируем по убыванию частоты
+        //     const sortedStats = Object.entries(stats)
+        //         .sort((a, b) => b[1] - a[1])
+        //         .filter(([char, freq]) => freq > 0 || char === ' '); // Показываем пробел даже если 0
+            
+        //     for (const [char, freq] of sortedStats) {
+        //         const displayChar = char === ' ' ? 'Пробел' : char.toUpperCase();
+        //         const percentage = (freq * 100).toFixed(2);
+        //         const frequency = freq.toFixed(4);
+                
+        //         tableBody.append(`
+        //             <tr>
+        //                 <td>${displayChar}</td>
+        //                 <td>${frequency}</td>
+        //                 <td>${percentage}%</td>
+        //             </tr>
+        //         `);
+        //     }
+            
+        //     $('#statisticsPanel').show();
+        // }
+        /* function showStatistics(title, stats) {
+            $('#statsTitle').text(title);
+            const tableBody = $('#statsTable tbody');
+            tableBody.empty();
+
+            // Сортируем по частоте (убывание)
+            const sortedStats = Object.entries(stats)
+                .sort((a, b) => b[1] - a[1]);
+
+            for (const [char, freq] of sortedStats) {
+                let displayName;
+                if (char === ' ') {
+                    displayName = 'Пробел';
+                } else if (char === '?') {
+                    displayName = '?';
+                } else {
+                    displayName = char.toUpperCase();
+                }
+
+                const percentage = (freq * 100).toFixed(2);
+                tableBody.append(`
+                    <tr>
+                        <td>${displayName}</td>
+                        <td>${freq.toFixed(4)}</td>
+                        <td>${percentage}%</td>
+                    </tr>
+                `);
+            }
+
+            $('#statisticsPanel').show();
+        } */
+        function showStatistics(title, stats) {
+            const modal = $('#statsModal');
+            const modalContent = $('#modalStatsContent');
+            
+            // Создаем содержимое для модального окна
+            let content = `<h3>${title}</h3>`;
+            content += `<div class="statistics"><table class="stat-table"><thead><tr>
+                        <th>Символ</th>
+                        <th>Частота</th>
+                        <th>%</th>
+                        </tr></thead><tbody>`;
+            
+            // Сортируем по частоте (убывание)
+            const sortedStats = Object.entries(stats)
+                .sort((a, b) => b[1] - a[1]);
+            
+            for (const [char, freq] of sortedStats) {
+                let displayName;
+                if (char === ' ') {
+                    displayName = 'Пробел';
+                } else if (char === '?') {
+                    displayName = '?';
+                } else {
+                    displayName = char.toUpperCase();
+                }
+                
+                const percentage = (freq * 100).toFixed(2);
+                content += `
+                    <tr>
+                        <td>${displayName}</td>
+                        <td>${freq.toFixed(4)}</td>
+                        <td>${percentage}%</td>
+                    </tr>
+                `;
+            }
+            
+            content += `</tbody></table></div>`;
+            modalContent.html(content);
+            
+            // Показываем модальное окно
+            modal.show();
+            
+            // Обработчик закрытия
+            $('.close').click(function() {
+                modal.hide();
+            });
+            
+            // Закрытие при клике вне окна
+            $(window).click(function(event) {
+                if (event.target === modal[0]) {
+                    modal.hide();
+                }
+            });
+        }
+        // Рассчитать статистику для текста
+        function calculateStats(text) {
+            const stats = {};
+            let totalLetters = 0;
+            
+            // Подсчитываем только русские буквы и пробел
+            for (const char of text.toLowerCase()) {
+                if (/[а-яё ]/.test(char)) {
+                    stats[char] = (stats[char] || 0) + 1;
+                    totalLetters++;
+                }
+            }
+            
+            // Нормализуем частоты
+            if (totalLetters > 0) {
+                for (const char in stats) {
+                    stats[char] = stats[char] / totalLetters;
+                }
+            }
+            
+            // Добавляем отсутствующие буквы с нулевой частотой
+            for (let charCode = 1072; charCode <= 1103; charCode++) {
+                const char = String.fromCharCode(charCode);
+                if (!(char in stats)) {
+                    stats[char] = 0;
+                }
+            }
+            if (!('ё' in stats)) stats['ё'] = 0;
+            if (!(' ' in stats)) stats[' '] = 0;
+            
+            return stats;
+        }
+
+        function calculateDecryptedStats(decryptedText) {
+            const stats = {};
+            let totalSymbols = 0;
+
+            // Учитываем только: русские буквы (а-я, ё), пробел и ?
+            for (const char of decryptedText) {
+                const lowerChar = char.toLowerCase();
+                if (/[а-яё]/.test(lowerChar)) {
+                    stats[lowerChar] = (stats[lowerChar] || 0) + 1;
+                    totalSymbols++;
+                } else if (char === ' ') {
+                    stats[' '] = (stats[' '] || 0) + 1;
+                    totalSymbols++;
+                } else if (char === '?') {
+                    stats['?'] = (stats['?'] || 0) + 1;
+                    totalSymbols++;
+                }
+                // Все остальные символы игнорируем
+            }
+
+            // Нормализуем частоты
+            if (totalSymbols > 0) {
+                for (const char in stats) {
+                    stats[char] = stats[char] / totalSymbols;
+                }
+            }
+
+            // Добавляем все возможные символы (даже если их не было)
+            const allChars = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя ?';
+            for (const char of allChars) {
+                if (!(char in stats)) {
+                    stats[char] = 0;
+                }
+            }
+
+            return stats;
+        }
+
+        // Обновление интерфейса
+        function updateUI() {
+            updateSubstitutionList();
+        }
+    </script>
+    
+    <div id="statsModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <div id="modalStatsContent"></div>
+        </div>
+    </div>
+</body>
+</html>
